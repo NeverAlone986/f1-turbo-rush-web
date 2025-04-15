@@ -1,7 +1,7 @@
 package game
 
 import (
-	"os"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -13,48 +13,91 @@ import (
 )
 
 const (
-	recordFile = "record.txt"
+	objectSize  = 50
+	updateDelay = 10 * time.Millisecond
 )
 
-var (
-	state    GameState
-	objects  GameObjects
-)
-
-func InitGame() {
-	state = GameState{
-		PlayerX:     175,
-		PlayerY:     500,
-		KeysPressed: make(map[fyne.KeyName]bool),
-		CurrentTrack: 1,
-		GameActive:   true,
-		WindowSize:  fyne.NewSize(400, 600),
-	}
-	loadRecord()
-}
-
-func loadRecord() {
-	if data, err := os.ReadFile(recordFile); err == nil {
-		if r, err := strconv.Atoi(string(data)); err == nil {
-			state.SetScore(0)
-			state.Record = r
+func getValidPosition(existing []*canvas.Image) (float32, float32) {
+	for {
+		x := float32(rand.Intn(int(state.WindowSize.Width) - objectSize))
+		y := float32(-rand.Intn(300) - 100)
+		if !isOverlapping(x, y, existing) {
+			return x, y
 		}
 	}
 }
 
-func saveRecord() {
-	if state.Score > state.Record {
-		state.Record = state.Score
-		os.WriteFile(recordFile, []byte(strconv.Itoa(state.Record)), 0644)
+func isOverlapping(x, y float32, objs []*canvas.Image) bool {
+	for _, obj := range objs {
+		pos := obj.Position()
+		if x < pos.X+objectSize && x+objectSize > pos.X &&
+			y < pos.Y+objectSize && y+objectSize > pos.Y {
+			return true
+		}
+	}
+	return false
+}
+
+func initEnemies(count int) {
+	objects.EnemyCars = make([]*canvas.Image, count)
+	for i := 0; i < count; i++ {
+		x, y := getValidPosition(nil)
+		enemy := canvas.NewImageFromFile("assets/enemies/enemy" + strconv.Itoa(i+1) + ".png")
+		enemy.Resize(fyne.NewSize(objectSize, 100))
+		enemy.Move(fyne.NewPos(x, y))
+		objects.EnemyCars[i] = enemy
+	}
+}
+
+func initObstacles(count int) {
+	objects.Obstacles = make([]*canvas.Image, count)
+	for i := 0; i < count; i++ {
+		x, y := getValidPosition(objects.EnemyCars)
+		obstacle := canvas.NewImageFromFile("assets/obstacles/obstacle" + strconv.Itoa(i+1) + ".png")
+		obstacle.Resize(fyne.NewSize(objectSize, objectSize))
+		obstacle.Move(fyne.NewPos(x, y))
+		objects.Obstacles[i] = obstacle
+	}
+}
+
+func addKeyboardControl(window fyne.Window) {
+	if deskCanvas, ok := window.Canvas().(desktop.Canvas); ok {
+		deskCanvas.SetOnKeyDown(func(e *fyne.KeyEvent) {
+			state.KeysPressed[e.Name] = true
+		})
+		deskCanvas.SetOnKeyUp(func(e *fyne.KeyEvent) {
+			delete(state.KeysPressed, e.Name)
+		})
+	}
+}
+
+func gameLoop(window fyne.Window, config TrackConfig) {
+	ticker := time.NewTicker(updateDelay)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if !state.GameActive {
+			return
+		}
+
+		state.SetScore(state.Score + 1)
+		objects.ScoreLabel.SetText("Score: " + strconv.Itoa(state.Score))
+
+		for _, enemy := range objects.EnemyCars {
+			pos := enemy.Position()
+			enemy.Move(fyne.NewPos(pos.X, pos.Y+config.EnemySpeed))
+		}
+
+		window.Content().Refresh()
 	}
 }
 
 func SetupGame(window fyne.Window) {
 	config := GetTrackConfig(state.CurrentTrack)
-	
+
 	objects.Background = canvas.NewImageFromFile(config.Background)
 	objects.Background.Resize(state.WindowSize)
-	
+
 	objects.PlayerCar = canvas.NewImageFromFile("assets/player/player.png")
 	objects.PlayerCar.Resize(fyne.NewSize(50, 100))
 	objects.PlayerCar.Move(fyne.NewPos(state.PlayerX, state.PlayerY))
@@ -65,7 +108,13 @@ func SetupGame(window fyne.Window) {
 	objects.ScoreLabel = widget.NewLabelWithStyle("Score: 0", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	objects.RecordLabel = widget.NewLabelWithStyle("Record: "+strconv.Itoa(state.Record), fyne.TextAlignTrailing, fyne.TextStyle{Bold: true})
 
-	gameContent := container.NewWithoutLayout(objects.Background, objects.PlayerCar, objects.ScoreLabel, objects.RecordLabel)
+	gameContent := container.NewWithoutLayout(
+		objects.Background,
+		objects.PlayerCar,
+		objects.ScoreLabel,
+		objects.RecordLabel,
+	)
+
 	for _, car := range objects.EnemyCars {
 		gameContent.Add(car)
 	}
@@ -78,5 +127,15 @@ func SetupGame(window fyne.Window) {
 	go gameLoop(window, config)
 }
 
-// ... остальные функции (isOverlapping, getValidPosition и т.д.) остаются аналогичными, 
-// но используют state и objects вместо глобальных переменных ...
+// GetState возвращает текущее состояние игры (для API)
+func GetState() GameState {
+	return state.GetState()
+}
+
+// ChangeTrack меняет текущую трассу (для API)
+func ChangeTrack(trackNum int) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.CurrentTrack = trackNum
+	state.GameActive = false // Остановить текущую игру
+}
