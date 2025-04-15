@@ -17,6 +17,20 @@ const (
 	updateDelay = 10 * time.Millisecond
 )
 
+// InitGame инициализирует состояние игры
+func InitGame() {
+	state = &GameState{
+		PlayerX:     175,
+		PlayerY:     500,
+		KeysPressed: make(map[fyne.KeyName]bool),
+		CurrentTrack: 1,
+		GameActive:   true,
+		WindowSize:  fyne.NewSize(400, 600),
+	}
+	objects = &GameObjects{}
+	//loadRecord()
+}
+
 func getValidPosition(existing []*canvas.Image) (float32, float32) {
 	for {
 		x := float32(rand.Intn(int(state.WindowSize.Width) - objectSize))

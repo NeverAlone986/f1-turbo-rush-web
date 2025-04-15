@@ -11,10 +11,11 @@ func SetupRoutes() *mux.Router {
 
 	// API endpoints
 	r.HandleFunc("/api/state", HandleGameState).Methods("GET")
-	r.HandleFunc("/api/track/{number}", HandleChangeTrack).Methods("POST")
+	r.HandleFunc("/api/track/{number:[1-3]}", HandleChangeTrack).Methods("POST")
 
 	// Static files
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./static")))
 
 	return r
 }
+
