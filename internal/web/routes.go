@@ -8,13 +8,13 @@ import (
 
 func SetupRoutes() *mux.Router {
 	r := mux.NewRouter()
-	
-	// API routes
-	r.HandleFunc("/api/game-state", HandleGameState).Methods("GET")
-	r.HandleFunc("/api/change-track/{track}", HandleTrackChange).Methods("POST")
-	
+
+	// API endpoints
+	r.HandleFunc("/api/state", HandleGameState).Methods("GET")
+	r.HandleFunc("/api/track/{number}", HandleChangeTrack).Methods("POST")
+
 	// Static files
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./static")))
-	
+
 	return r
 }

@@ -4,24 +4,22 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yourusername/f1-turbo-rush/internal/game"
+	"github.com/NeverAlone986/f1-turbo-rush-web/internal/game"
 )
 
 func HandleGameState(w http.ResponseWriter, r *http.Request) {
-	gameState := game.GetState()
-	
+	currentState := game.GetState()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(gameState)
+	json.NewEncoder(w).Encode(currentState)
 }
 
-func HandleTrackChange(w http.ResponseWriter, r *http.Request) {
-	trackNum := r.URL.Query().Get("track")
-	num, err := strconv.Atoi(trackNum)
-	if err != nil || num < 1 || num > 5 { // Предполагаем 5 трасс
+func HandleChangeTrack(w http.ResponseWriter, r *http.Request) {
+	trackNum, err := strconv.Atoi(r.URL.Query().Get("track"))
+	if err != nil {
 		http.Error(w, "Invalid track number", http.StatusBadRequest)
 		return
 	}
-	
-	game.ChangeTrack(num)
+
+	game.ChangeTrack(trackNum)
 	w.WriteHeader(http.StatusOK)
 }

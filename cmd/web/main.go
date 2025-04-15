@@ -4,19 +4,18 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/yourusername/f1-turbo-rush/internal/game"
-	"github.com/yourusername/f1-turbo-rush/internal/web"
+	"github.com/NeverAlone986/f1-turbo-rush-web/internal/game"
+	"github.com/NeverAlone986/f1-turbo-rush-web/internal/web"
 )
 
 func main() {
-	// Инициализация игры
 	game.InitGame()
 
-	// Настройка маршрутов
+	// Инициализация HTTP сервера
 	router := web.SetupRoutes()
 
 	// Запуск сервера
-	log.Println("Server starting on :8080...")
+	log.Println("Starting server on :8080...")
 	if err := http.ListenAndServe(":8080", router); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
